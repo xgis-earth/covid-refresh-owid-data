@@ -1,0 +1,26 @@
+kind: pipeline
+type: docker
+name: default
+
+steps:
+  - name: publish
+    image: plugins/docker
+    settings:
+      repo: xgis/covid-refresh-owid-data
+      tags: [ "${DRONE_COMMIT_SHA:0:7}", "latest" ]
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+  - name: deploy
+    image: sinlead/drone-kubectl
+    settings:
+      kubernetes_server:
+        from_secret: k8s_server
+      kubernetes_cert:
+        from_secret: k8s_cert
+      kubernetes_token:
+        from_secret: k8s_token
+    commands:
+      - kubectl -n=covid apply -f deployment.yaml
+      - kubectl -n=covid patch deployment refresh-owid-data -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"date\":\"`date +'%s'`\"}}}}}"
